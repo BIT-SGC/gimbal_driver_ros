@@ -1,0 +1,14 @@
+[Unit]
+Description=GStreamer RTSP Switch Service
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/switch-stream.sh
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

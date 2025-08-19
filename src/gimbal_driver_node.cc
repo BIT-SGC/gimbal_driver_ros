@@ -1,6 +1,7 @@
 // gimbal_ctrl_node.cpp
 #include "gimbal_rc_wrapper/GimbalCtrl.h" // 自定义消息
 #include <gimbal_drv/gimbal_ctrl.h>
+#include <cstdio>  // for fopen, fprintf
 #include <memory>
 #include <mutex>
 #include <ros/ros.h>
@@ -83,12 +84,21 @@ public:
     switch (msg->stream_src) {
     case 0:
       ROS_DEBUG("Stream source: Visible light (RGB)");
+      if (last_stream_src_ != 0) {
+        sendStreamSwitchCommand("switch 1");
+        last_stream_src_ = 0;
+      }
       break;
     case 1:
       ROS_DEBUG("Stream source: Thermal (IR)");
+      if (last_stream_src_ != 1) {
+        sendStreamSwitchCommand("switch 2");
+        last_stream_src_ = 1;
+      }
       break;
     case 2:
-      ROS_DEBUG("Stream source: Fusion mode");
+      ROS_DEBUG("Stream source: Fusion mode (not supported yet)");
+      // TODO: 可扩展融合流
       break;
     default:
       ROS_WARN("Unknown stream source ID: %u", msg->stream_src);
@@ -168,6 +178,25 @@ private:
   std::unique_ptr<GimbalCtrl> gimbal_;
   std::mutex ros_mutex_;
   bool _record_sta = false;
+  std::string current_stream_pipe_ = "/tmp/stream-control-pipe";
+  int last_stream_src_ = -1;
+
+  bool sendStreamSwitchCommand(const std::string &cmd) {
+    FILE *pipe = fopen(current_stream_pipe_.c_str(), "w");
+    if (!pipe) {
+      ROS_WARN("Failed to open stream control pipe: %s",
+               current_stream_pipe_.c_str());
+      return false;
+    }
+    if (fprintf(pipe, "%s\n", cmd.c_str()) < 0) {
+      ROS_WARN("Failed to write command to pipe: %s", cmd.c_str());
+      fclose(pipe);
+      return false;
+    }
+    fclose(pipe);
+    ROS_INFO("Sent stream switch command: %s", cmd.c_str());
+    return true;
+  }
 };
 
 int main(int argc, char **argv) {
