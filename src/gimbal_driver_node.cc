@@ -79,6 +79,51 @@ public:
       return;
     }
 
+    // 处理视频流源切换（可扩展为调用 shell 命令或发布控制消息）
+    switch (msg->stream_src) {
+    case 0:
+      ROS_DEBUG("Stream source: Visible light (RGB)");
+      break;
+    case 1:
+      ROS_DEBUG("Stream source: Thermal (IR)");
+      break;
+    case 2:
+      ROS_DEBUG("Stream source: Fusion mode");
+      break;
+    default:
+      ROS_WARN("Unknown stream source ID: %u", msg->stream_src);
+      break;
+    }
+
+    // 设置录像状态 与解锁按键相关
+    switch (msg->record_sta) {
+    case 0:
+      if (_record_sta != false) {
+        do {
+          gimbal_->controlRecording(GimbalCtrl::RecordState::STOP);
+          ROS_WARN("Recording stopping...");
+        } while (gimbal_->queryRecordingStatus());
+        _record_sta = false;
+        ROS_INFO("Recording stopped successfully.");
+      }
+      break;
+    case 1:
+      break;
+    case 2:
+      if (_record_sta != true) {
+        do {
+          gimbal_->controlRecording(GimbalCtrl::RecordState::START);
+          ROS_WARN("Recording starting...");
+        } while (!gimbal_->queryRecordingStatus());
+        _record_sta = true;
+        ROS_INFO("Recording started successfully.");
+      }
+      break;
+    default:
+      break;
+    }
+
+    // 以下角度控制需要使能云台
     if (!msg->enable) {
       ROS_DEBUG("Gimbal control disabled. Ignoring command.");
       return;
@@ -114,50 +159,6 @@ public:
     } else {
       ROS_ERROR("Failed to set gimbal angle: yaw=%.2f, pitch=%.2f, roll=%.2f",
                 yaw, pitch, roll);
-    }
-
-    // 处理视频流源切换（可扩展为调用 shell 命令或发布控制消息）
-    switch (msg->stream_src) {
-    case 0:
-      ROS_DEBUG("Stream source: Visible light (RGB)");
-      break;
-    case 1:
-      ROS_DEBUG("Stream source: Thermal (IR)");
-      break;
-    case 2:
-      ROS_DEBUG("Stream source: Fusion mode");
-      break;
-    default:
-      ROS_WARN("Unknown stream source ID: %u", msg->stream_src);
-      break;
-    }
-
-    // 录像状态 与解锁按键相关
-    switch (msg->record_sta) {
-    case 0:
-      if (_record_sta != false) {
-        do {
-          gimbal_->controlRecording(GimbalCtrl::RecordState::STOP);
-          ROS_WARN("Recording stopping...");
-        } while (gimbal_->queryRecordingStatus());
-        _record_sta = false;
-        ROS_INFO("Recording stopped successfully.");
-      }
-      break;
-    case 1:
-      break;
-    case 2:
-      if(_record_sta != true) {
-        do {
-          gimbal_->controlRecording(GimbalCtrl::RecordState::START);
-          ROS_WARN("Recording starting...");
-        } while (!gimbal_->queryRecordingStatus());
-        _record_sta = true;
-        ROS_INFO("Recording started successfully.");
-      }
-      break;
-    default:
-      break;
     }
   }
 
